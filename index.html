@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Шифр Цезаря - Криптографічна Система</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Header with menu -->
+<header class="app-header">
+    <div class="container">
+        <h1 class="app-title">Криптографічна система: Шифр Цезаря</h1>
+        <nav class="main-menu">
+            <div class="menu-item">
+                <button class="menu-btn">Файл</button>
+                <div class="dropdown-menu">
+                    <button onclick="newFile()">Новий</button>
+                    <button onclick="openFile()">Відкрити</button>
+                    <button onclick="saveFile()">Зберегти</button>
+                    <button onclick="printFile()">Друкувати</button>
+                    <button onclick="exitApp()">Вихід</button>
+                </div>
+            </div>
+            <div class="menu-item">
+                <button class="menu-btn">Криптографія</button>
+                <div class="dropdown-menu">
+                    <button onclick="encrypt()">Шифрування</button>
+                    <button onclick="decrypt()">Розшифрування</button>
+                    <button onclick="showBruteForce()">Атака грубою силою</button>
+                </div>
+            </div>
+            <div class="menu-item">
+                <button class="menu-btn">Налаштування</button>
+                <div class="dropdown-menu">
+                    <button onclick="toggleLanguage()">Змінити мову алфавіту</button>
+                    <button onclick="showSettings()">Параметри</button>
+                </div>
+            </div>
+            <div class="menu-item">
+                <button class="menu-btn">Довідка</button>
+                <div class="dropdown-menu">
+                    <button onclick="showHelp()">Допомога</button>
+                    <button onclick="showAbout()">Про розробника</button>
+                </div>
+            </div>
+        </nav>
+    </div>
+</header>
+
+<!-- Toolbar -->
+<div class="toolbar">
+    <div class="container">
+        <div class="toolbar-section">
+            <button class="btn btn--primary btn--sm" onclick="encrypt()" title="Шифрувати">🔒 Шифрувати</button>
+            <button class="btn btn--secondary btn--sm" onclick="decrypt()" title="Розшифрувати">🔓 Розшифрувати</button>
+            <button class="btn btn--outline btn--sm" onclick="showBruteForce()" title="Атака грубою силою">⚔️ Атака
+            </button>
+        </div>
+        <div class="toolbar-section">
+            <label class="form-label">Мова алфавіту:</label>
+            <select id="languageSelect" class="form-control" onchange="changeLanguage()">
+                <option value="ukrainian">Українська (33 букви)</option>
+                <option value="english">Англійська (26 букв)</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Main content -->
+<main class="main-content">
+    <div class="container">
+        <div class="workspace">
+            <!-- Input section -->
+            <div class="card">
+                <div class="card__header">
+                    <h3>Вхідний текст</h3>
+                    <button class="btn btn--sm btn--outline" onclick="loadSample()">Завантажити приклад</button>
+                </div>
+                <div class="card__body">
+                    <textarea id="inputText" class="form-control" rows="8"
+                              placeholder="Введіть текст для шифрування або розшифрування..."></textarea>
+                    <div class="file-upload">
+                        <input type="file" id="fileInput" accept=".txt" onchange="loadFile()" hidden>
+                        <button class="btn btn--outline btn--sm" onclick="document.getElementById('fileInput').click()">
+                            📁 Завантажити файл
+                        </button>
+                        <span id="fileName" class="file-name"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key section -->
+            <div class="card">
+                <div class="card__header">
+                    <h3>Ключ шифрування</h3>
+                    <span id="keyRange" class="status status--info">Діапазон: 1-32</span>
+                </div>
+                <div class="card__body">
+                    <div class="key-input-section">
+                        <input type="number" id="keyInput" class="form-control" min="1" max="32" value="3"
+                               placeholder="Введіть ключ">
+                        <div class="key-buttons">
+                            <button class="btn btn--sm btn--outline" onclick="generateRandomKey()">🎲 Випадковий</button>
+                            <button class="btn btn--sm btn--outline" onclick="validateKey()">✓ Перевірити</button>
+                        </div>
+                    </div>
+                    <div id="keyValidation" class="validation-message"></div>
+                    <div class="common-keys">
+                        <span>Популярні ключі:</span>
+                        <button class="key-btn" onclick="setKey(1)">1</button>
+                        <button class="key-btn" onclick="setKey(3)">3</button>
+                        <button class="key-btn" onclick="setKey(5)">5</button>
+                        <button class="key-btn" onclick="setKey(13)">13</button>
+                        <button class="key-btn" onclick="setKey(25)">25</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output section -->
+            <div class="card">
+                <div class="card__header">
+                    <h3>Результат</h3>
+                    <div class="result-actions">
+                        <button class="btn btn--sm btn--outline" onclick="copyResult()">📋 Копіювати</button>
+                        <button class="btn btn--sm btn--outline" onclick="clearResult()">🗑️ Очистити</button>
+                    </div>
+                </div>
+                <div class="card__body">
+                    <textarea id="outputText" class="form-control" rows="8" placeholder="Результат з'явиться тут..."
+                              readonly></textarea>
+                    <div class="result-stats">
+                        <span id="charCount">Символів: 0</span>
+                        <span id="operationTime">Час: 0мс</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Brute Force Modal -->
+<div id="bruteForceModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Атака грубою силою</h2>
+            <button class="modal-close" onclick="closeBruteForce()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Виконання атаки методом перебору всіх можливих ключів...</p>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <div id="bruteForceResults" class="brute-force-results"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn--outline" onclick="closeBruteForce()">Закрити</button>
+            <button class="btn btn--primary" onclick="startBruteForce()">Почати атаку</button>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Налаштування</h2>
+            <button class="modal-close" onclick="closeSettings()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Регістр символів:</label>
+                <select id="caseHandling" class="form-control">
+                    <option value="preserve">Зберігати оригінальний</option>
+                    <option value="upper">Перетворити у верхній</option>
+                    <option value="lower">Перетворити у нижній</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Обробка не-алфавітних символів:</label>
+                <select id="nonAlphaHandling" class="form-control">
+                    <option value="preserve">Залишати без змін</option>
+                    <option value="remove">Видаляти</option>
+                    <option value="space">Замінювати пробілами</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn--outline" onclick="closeSettings()">Скасувати</button>
+            <button class="btn btn--primary" onclick="saveSettings()">Зберегти</button>
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div id="helpModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Довідка</h2>
+            <button class="modal-close" onclick="closeHelp()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <h3>Шифр Цезаря</h3>
+            <p>Шифр Цезаря - це метод шифрування, де кожна буква замінюється на букву, що знаходиться на фіксованому
+                числі позицій далі в алфавіті.</p>
+            <h4>Формули:</h4>
+            <p><strong>Шифрування:</strong> y = (x + k) mod n</p>
+            <p><strong>Розшифрування:</strong> x = (y + n - (k mod n)) mod n</p>
+            <p>де x - символ відкритого тексту, y - символ шифрованого тексту, n - потужність алфавіту, k - ключ.</p>
+            <h4>Інструкції:</h4>
+            <ol>
+                <li>Оберіть мову алфавіту</li>
+                <li>Введіть текст або завантажте файл</li>
+                <li>Вкажіть ключ шифрування</li>
+                <li>Натисніть "Шифрувати" або "Розшифрувати"</li>
+                <li>Переглядайте результат у відповідному полі</li>
+            </ol>
+            <h4>Гарячі клавіші</h4>
+            <ol>
+                <li>Ctrl+E — Encrypt.</li>
+                <li>Ctrl+D — Decrypt.</li>
+                <li>Ctrl+S — Save.</li>
+                <li>Ctrl+O — Open.</li>
+                <li>Ctrl+N — New.</li>
+            </ol>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn--primary" onclick="closeHelp()">Закрити</button>
+        </div>
+    </div>
+</div>
+
+<!-- About Modal -->
+<div id="aboutModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Про розробника</h2>
+            <button class="modal-close" onclick="closeAbout()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="about-content">
+                <h3>Криптографічна система "Шифр Цезаря"</h3>
+                <p><strong>Версія:</strong> 1.0.0</p>
+                <p><strong>Дата розробки:</strong> Вересень 2025</p>
+                <p><strong>Розробник:</strong> Комп'ютерний практикум №1</p>
+                <p><strong>Мета:</strong> Розробка криптосистеми на основі шифру Цезаря</p>
+                <div class="features-list">
+                    <h4>Можливості системи:</h4>
+                    <ul>
+                        <li>Підтримка української та англійської мов</li>
+                        <li>Валідація ключів шифрування</li>
+                        <li>Атака методом грубої сили</li>
+                        <li>Робота з файлами</li>
+                        <li>Статистика та аналіз</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn--primary" onclick="closeAbout()">Закрити</button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
