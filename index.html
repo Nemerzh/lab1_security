@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Шифр Цезаря - Криптографічна Система</title>
+    <title>Криптографічна система: Цезар / Тритеміус</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <!-- Header with menu -->
 <header class="app-header">
     <div class="container">
-        <h1 class="app-title">Криптографічна система: Шифр Цезаря</h1>
+        <h1 class="app-title">Криптографічна система: Шифр Цезаря / Тритеміуса</h1>
         <nav class="main-menu">
             <div class="menu-item">
                 <button class="menu-btn">Файл</button>
@@ -22,6 +22,7 @@
                     <button onclick="exitApp()">Вихід</button>
                 </div>
             </div>
+
             <div class="menu-item">
                 <button class="menu-btn">Криптографія</button>
                 <div class="dropdown-menu">
@@ -30,6 +31,16 @@
                     <button onclick="showBruteForce()">Атака грубою силою</button>
                 </div>
             </div>
+
+            <!-- NEW: Алгоритм -->
+            <div class="menu-item">
+                <button class="menu-btn">Алгоритм</button>
+                <div class="dropdown-menu">
+                    <button onclick="setCipher('caesar')">Шифр Цезаря</button>
+                    <button onclick="setCipher('trithemius')">Шифр Тритеміуса</button>
+                </div>
+            </div>
+
             <div class="menu-item">
                 <button class="menu-btn">Налаштування</button>
                 <div class="dropdown-menu">
@@ -37,6 +48,7 @@
                     <button onclick="showSettings()">Параметри</button>
                 </div>
             </div>
+
             <div class="menu-item">
                 <button class="menu-btn">Довідка</button>
                 <div class="dropdown-menu">
@@ -54,9 +66,18 @@
         <div class="toolbar-section">
             <button class="btn btn--primary btn--sm" onclick="encrypt()" title="Шифрувати">🔒 Шифрувати</button>
             <button class="btn btn--secondary btn--sm" onclick="decrypt()" title="Розшифрувати">🔓 Розшифрувати</button>
-            <button class="btn btn--outline btn--sm" onclick="showBruteForce()" title="Атака грубою силою">⚔️ Атака
-            </button>
+            <button class="btn btn--outline btn--sm" onclick="showBruteForce()" title="Атака грубою силою">⚔️ Атака</button>
         </div>
+
+        <!-- NEW: селектор алгоритму у тулбарі -->
+        <div class="toolbar-section">
+            <label class="form-label">Алгоритм:</label>
+            <select id="cipherSelect" class="form-control" onchange="onCipherChange()">
+                <option value="caesar">Цезаря</option>
+                <option value="trithemius">Тритеміуса</option>
+            </select>
+        </div>
+
         <div class="toolbar-section">
             <label class="form-label">Мова алфавіту:</label>
             <select id="languageSelect" class="form-control" onchange="changeLanguage()">
@@ -78,41 +99,123 @@
                     <button class="btn btn--sm btn--outline" onclick="loadSample()">Завантажити приклад</button>
                 </div>
                 <div class="card__body">
-                    <textarea id="inputText" class="form-control" rows="8"
-                              placeholder="Введіть текст для шифрування або розшифрування..."></textarea>
+                    <textarea id="inputText" class="form-control" rows="8" placeholder="Введіть текст для шифрування або розшифрування..."></textarea>
                     <div class="file-upload">
                         <input type="file" id="fileInput" accept=".txt" onchange="loadFile()" hidden>
-                        <button class="btn btn--outline btn--sm" onclick="document.getElementById('fileInput').click()">
-                            📁 Завантажити файл
-                        </button>
+                        <button class="btn btn--outline btn--sm" onclick="document.getElementById('fileInput').click()">📁 Завантажити файл</button>
                         <span id="fileName" class="file-name"></span>
                     </div>
                 </div>
             </div>
 
-            <!-- Key section -->
+            <!-- Parameters panel -->
             <div class="card">
                 <div class="card__header">
-                    <h3>Ключ шифрування</h3>
-                    <span id="keyRange" class="status status--info">Діапазон: 1-32</span>
+                    <h3>Параметри алгоритму</h3>
+                    <span id="alphabetInfo" class="status status--info">Алфавіт: Українська, n=33</span>
                 </div>
                 <div class="card__body">
-                    <div class="key-input-section">
-                        <input type="number" id="keyInput" class="form-control" min="1" max="32" value="3"
-                               placeholder="Введіть ключ">
-                        <div class="key-buttons">
-                            <button class="btn btn--sm btn--outline" onclick="generateRandomKey()">🎲 Випадковий</button>
-                            <button class="btn btn--sm btn--outline" onclick="validateKey()">✓ Перевірити</button>
+                    <!-- CAESAR parameters -->
+                    <div id="caesarParams">
+                        <div class="param-row">
+                            <label class="form-label">Ключ шифрування (k):</label>
+                            <div class="key-input-section">
+                                <input type="number" id="keyInput" class="form-control" min="1" max="32" value="3" placeholder="Введіть ключ">
+                                <div class="key-buttons">
+                                    <button class="btn btn--sm btn--outline" onclick="generateRandomKey()">🎲 Випадковий</button>
+                                    <button class="btn btn--sm btn--outline" onclick="validateKey()">✓ Перевірити</button>
+                                </div>
+                            </div>
+                            <div id="keyValidation" class="validation-message"></div>
+                            <div class="common-keys">
+                                <span>Популярні ключі:</span>
+                                <button class="key-btn" onclick="setKey(1)">1</button>
+                                <button class="key-btn" onclick="setKey(3)">3</button>
+                                <button class="key-btn" onclick="setKey(5)">5</button>
+                                <button class="key-btn" onclick="setKey(13)">13</button>
+                                <button class="key-btn" onclick="setKey(25)">25</button>
+                            </div>
+                            <span id="keyRange" class="status status--info">Діапазон: 1-32</span>
                         </div>
                     </div>
-                    <div id="keyValidation" class="validation-message"></div>
-                    <div class="common-keys">
-                        <span>Популярні ключі:</span>
-                        <button class="key-btn" onclick="setKey(1)">1</button>
-                        <button class="key-btn" onclick="setKey(3)">3</button>
-                        <button class="key-btn" onclick="setKey(5)">5</button>
-                        <button class="key-btn" onclick="setKey(13)">13</button>
-                        <button class="key-btn" onclick="setKey(25)">25</button>
+
+                    <!-- TRITHEMIUS parameters -->
+                    <div id="trithemiusParams" class="hidden">
+                        <div class="param-row">
+                            <label class="form-label">Режим ключа:</label>
+                            <select id="trithemiusMode" class="form-control" onchange="onTrithemiusModeChange()">
+                                <option value="linear">Лінійний (k = A·p + B)</option>
+                                <option value="quadratic">Квадратичний (k = A·p² + B·p + C)</option>
+                                <option value="motto">Гасло (повторне)</option>
+                            </select>
+                        </div>
+
+                        <!-- Linear -->
+                        <div id="triLinear" class="param-row">
+                            <div class="grid-3">
+                                <div>
+                                    <label class="form-label">A:</label>
+                                    <input type="number" id="triA" class="form-control" value="1" />
+                                </div>
+                                <div>
+                                    <label class="form-label">B:</label>
+                                    <input type="number" id="triB" class="form-control" value="0" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Нумерація p:</label>
+                                    <select id="triPBase" class="form-control">
+                                        <option value="0">p починається з 0</option>
+                                        <option value="1">p починається з 1</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="triLinearValidation" class="validation-message"></div>
+                        </div>
+
+                        <!-- Quadratic -->
+                        <div id="triQuadratic" class="param-row hidden">
+                            <div class="grid-4">
+                                <div>
+                                    <label class="form-label">A:</label>
+                                    <input type="number" id="triQA" class="form-control" value="1" />
+                                </div>
+                                <div>
+                                    <label class="form-label">B:</label>
+                                    <input type="number" id="triQB" class="form-control" value="0" />
+                                </div>
+                                <div>
+                                    <label class="form-label">C:</label>
+                                    <input type="number" id="triQC" class="form-control" value="0" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Нумерація p:</label>
+                                    <select id="triQPBase" class="form-control">
+                                        <option value="0">p починається з 0</option>
+                                        <option value="1">p починається з 1</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="triQuadraticValidation" class="validation-message"></div>
+                        </div>
+
+                        <!-- Motto -->
+                        <div id="triMotto" class="param-row hidden">
+                            <div class="grid-2">
+                                <div>
+                                    <label class="form-label">Гасло:</label>
+                                    <input type="text" id="triMottoText" class="form-control" placeholder="Введіть гасло алфавітом повідомлення" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Нумерація p:</label>
+                                    <select id="triMPBase" class="form-control">
+                                        <option value="0">p починається з 0</option>
+                                        <option value="1">p починається з 1</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="triMottoValidation" class="validation-message"></div>
+                            <div class="hint">Порада: символи гасла мають належати вибраному алфавіту</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -127,14 +230,14 @@
                     </div>
                 </div>
                 <div class="card__body">
-                    <textarea id="outputText" class="form-control" rows="8" placeholder="Результат з'явиться тут..."
-                              readonly></textarea>
+                    <textarea id="outputText" class="form-control" rows="8" placeholder="Результат з'явиться тут..." readonly></textarea>
                     <div class="result-stats">
                         <span id="charCount">Символів: 0</span>
                         <span id="operationTime">Час: 0мс</span>
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 </main>
@@ -201,19 +304,14 @@
         </div>
         <div class="modal-body">
             <h3>Шифр Цезаря</h3>
-            <p>Шифр Цезаря - це метод шифрування, де кожна буква замінюється на букву, що знаходиться на фіксованому
-                числі позицій далі в алфавіті.</p>
-            <h4>Формули:</h4>
-            <p><strong>Шифрування:</strong> y = (x + k) mod n</p>
-            <p><strong>Розшифрування:</strong> x = (y + n - (k mod n)) mod n</p>
-            <p>де x - символ відкритого тексту, y - символ шифрованого тексту, n - потужність алфавіту, k - ключ.</p>
-            <h4>Інструкції:</h4>
+            <p>Шифр Цезаря — фіксований зсув \(k\) для всіх позицій: y = (x + k) mod n.</p>
+            <h3>Шифр Тритеміуса</h3>
+            <p>Поліалфавітна підстановка з позиційно-залежним зсувом або гаслом: k(p) = A·p + B; k(p) = A·p² + B·p + C; або індекс символу гасла.</p>
+            <h4>Поради</h4>
             <ol>
-                <li>Оберіть мову алфавіту</li>
-                <li>Введіть текст або завантажте файл</li>
-                <li>Вкажіть ключ шифрування</li>
-                <li>Натисніть "Шифрувати" або "Розшифрувати"</li>
-                <li>Переглядайте результат у відповідному полі</li>
+                <li>Обрати алгоритм у меню або селекторі тулбару.</li>
+                <li>Заповнити відповідні параметри (ключ або коефіцієнти/гасло).</li>
+                <li>Виконати шифрування/розшифрування кнопками або гарячими клавішами.</li>
             </ol>
             <h4>Гарячі клавіші</h4>
             <ol>
@@ -239,19 +337,19 @@
         </div>
         <div class="modal-body">
             <div class="about-content">
-                <h3>Криптографічна система "Шифр Цезаря"</h3>
-                <p><strong>Версія:</strong> 1.0.0</p>
-                <p><strong>Дата розробки:</strong> Вересень 2025</p>
-                <p><strong>Розробник:</strong> Комп'ютерний практикум №1</p>
-                <p><strong>Мета:</strong> Розробка криптосистеми на основі шифру Цезаря</p>
+                <h3>Криптографічна система "Цезар / Тритеміус"</h3>
+                <p><strong>Версія:</strong> 2.0.0</p>
+                <p><strong>Дата оновлення:</strong> Жовтень 2025</p>
+                <p><strong>Розробник:</strong> ТВ-23 Невмержицький Олександр</p>
+                <p><strong>Мета:</strong> Додати підтримку шифру Тритеміуса і вибір алгоритму</p>
                 <div class="features-list">
                     <h4>Можливості системи:</h4>
                     <ul>
                         <li>Підтримка української та англійської мов</li>
-                        <li>Валідація ключів шифрування</li>
-                        <li>Атака методом грубої сили</li>
-                        <li>Робота з файлами</li>
-                        <li>Статистика та аналіз</li>
+                        <li>Шифр Цезаря і Тритеміуса (лінійний, квадратичний, гасло)</li>
+                        <li>Валідація ключів і параметрів</li>
+                        <li>Атака методом грубої сили (для Цезаря), основа для активної атаки (Тритеміус)</li>
+                        <li>Робота з файлами, статистика та аналіз</li>
                     </ul>
                 </div>
             </div>

@@ -1,559 +1,701 @@
+// =========================
 // Application data
+// =========================
 const appData = {
-    ukrainian: {
-        alphabet: "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ",
-        lowercase: "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя",
-        sample: "Привіт світ! Це приклад тексту для шифрування.",
-        help: "Шифр Цезаря - це метод шифрування, де кожна буква замінюється на букву, що знаходиться на фіксованому числі позицій далі в алфавіті."
-    },
-    english: {
-        alphabet: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-        lowercase: "abcdefghijklmnopqrstuvwxyz",
-        sample: "Hello world! This is a sample text for encryption.",
-        help: "Caesar cipher is an encryption method where each letter is replaced by a letter a fixed number of positions down the alphabet."
-    }
+  ukrainian: {
+    alphabet: "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ",
+    lowercase: "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя",
+    sample: "Привіт світ! Це приклад тексту для шифрування.",
+    help: "Шифр Цезаря - це метод шифрування, де кожна буква замінюється на букву, що знаходиться на фіксованому числі позицій далі в алфавіті."
+  },
+  english: {
+    alphabet: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    lowercase: "abcdefghijklmnopqrstuvwxyz",
+    sample: "Hello world! This is a sample text for encryption.",
+    help: "Caesar cipher is an encryption method where each letter is replaced by a letter a fixed number of positions down the alphabet."
+  }
 };
 
-// Current language settings
+// =========================
+// Global state
+// =========================
 let currentLanguage = 'ukrainian';
+let currentCipher = 'caesar'; // 'caesar' | 'trithemius'
 let settings = {
-    caseHandling: 'preserve',
-    nonAlphaHandling: 'preserve'
+  caseHandling: 'preserve', // 'preserve' | 'upper' | 'lower'
+  nonAlphaHandling: 'preserve' // 'preserve' | 'remove' | 'space'
 };
 
-// Key Validator Class
+// =========================
+/* DOM refs – ініціалізуються після DOMContentLoaded */
+// =========================
+let inputText, outputText, keyInput, languageSelect, keyRange, keyValidation;
+let charCount, operationTime, fileName;
+
+// =========================
+// Base validators/utilities
+// =========================
 class KeyValidator {
-    constructor(language) {
-        this.language = language;
-        this.maxKey = appData[language].alphabet.length - 1;
+  constructor(language) {
+    this.language = language;
+    this.maxKey = appData[language].alphabet.length - 1;
+  }
+  validate(key) {
+    if (key === null || key === undefined || key === '') {
+      return { valid: false, message: 'Ключ не може бути порожнім' };
     }
-
-    validate(key) {
-        if (key === null || key === undefined || key === '') {
-            return { valid: false, message: 'Ключ не може бути порожнім' };
-        }
-
-        const numKey = parseInt(key);
-        if (isNaN(numKey)) {
-            return { valid: false, message: 'Ключ повинен бути числом' };
-        }
-
-        if (numKey < 1) {
-            return { valid: false, message: 'Ключ повинен бути більше 0' };
-        }
-
-        if (numKey > this.maxKey) {
-            return { valid: false, message: `Ключ не може бути більше ${this.maxKey}` };
-        }
-
-        return { valid: true, message: 'Ключ коректний' };
+    const numKey = parseInt(key);
+    if (isNaN(numKey)) {
+      return { valid: false, message: 'Ключ повинен бути числом' };
     }
-
-    getRange() {
-        return `1-${this.maxKey}`;
+    if (numKey < 1) {
+      return { valid: false, message: 'Ключ повинен бути більше 0' };
     }
+    if (numKey > this.maxKey) {
+      return { valid: false, message: `Ключ не може бути більше ${this.maxKey}` };
+    }
+    return { valid: true, message: 'Ключ коректний' };
+  }
+  getRange() { return `1-${this.maxKey}`; }
 }
 
-// Caesar Cipher Class
+// =========================
+// Caesar cipher
+// =========================
 class CaesarCipher {
-    constructor(language) {
-        this.language = language;
-        this.data = appData[language];
-        this.validator = new KeyValidator(language);
-    }
-
-    encrypt(text, key) {
-        const validation = this.validator.validate(key);
-        if (!validation.valid) {
-            throw new Error(validation.message);
+  constructor(language) {
+    this.language = language;
+    this.data = appData[language];
+    this.validator = new KeyValidator(language);
+  }
+  encrypt(text, key) {
+    const validation = this.validator.validate(key);
+    if (!validation.valid) throw new Error(validation.message);
+    const numKey = parseInt(key);
+    return this.processText(text, numKey, true);
+  }
+  decrypt(text, key) {
+    const validation = this.validator.validate(key);
+    if (!validation.valid) throw new Error(validation.message);
+    const numKey = parseInt(key);
+    return this.processText(text, numKey, false);
+  }
+  processText(text, key, isEncrypt) {
+    let result = '';
+    const alphabetSize = this.data.alphabet.length;
+    for (let char of text) {
+      const upperIndex = this.data.alphabet.indexOf(char.toUpperCase());
+      const lowerIndex = this.data.lowercase.indexOf(char);
+      if (upperIndex !== -1) {
+        const shift = isEncrypt ? key : alphabetSize - key;
+        const newIndex = (upperIndex + shift) % alphabetSize;
+        const newUpper = this.data.alphabet[newIndex];
+        const newLower = this.data.lowercase[newIndex];
+        if (settings.caseHandling === 'preserve' && char === char.toLowerCase()) {
+          result += newLower;
+        } else if (settings.caseHandling === 'lower') {
+          result += newLower;
+        } else {
+          result += newUpper;
         }
-
-        const numKey = parseInt(key);
-        return this.processText(text, numKey, true);
-    }
-
-    decrypt(text, key) {
-        const validation = this.validator.validate(key);
-        if (!validation.valid) {
-            throw new Error(validation.message);
+      } else if (lowerIndex !== -1) {
+        const shift = isEncrypt ? key : alphabetSize - key;
+        const newIndex = (lowerIndex + shift) % alphabetSize;
+        const newUpper = this.data.alphabet[newIndex];
+        const newLower = this.data.lowercase[newIndex];
+        if (settings.caseHandling === 'upper') {
+          result += newUpper;
+        } else {
+          result += newLower;
         }
-
-        const numKey = parseInt(key);
-        return this.processText(text, numKey, false);
-    }
-
-    processText(text, key, isEncrypt) {
-        let result = '';
-        const alphabetSize = this.data.alphabet.length;
-
-        for (let char of text) {
-            const upperIndex = this.data.alphabet.indexOf(char.toUpperCase());
-            const lowerIndex = this.data.lowercase.indexOf(char);
-
-            if (upperIndex !== -1) {
-                // Upper case character
-                const shift = isEncrypt ? key : alphabetSize - key;
-                const newIndex = (upperIndex + shift) % alphabetSize;
-                const newChar = this.data.alphabet[newIndex];
-                
-                if (settings.caseHandling === 'preserve' && char === char.toLowerCase()) {
-                    result += this.data.lowercase[newIndex];
-                } else if (settings.caseHandling === 'lower') {
-                    result += this.data.lowercase[newIndex];
-                } else {
-                    result += newChar;
-                }
-            } else if (lowerIndex !== -1) {
-                // Lower case character
-                const shift = isEncrypt ? key : alphabetSize - key;
-                const newIndex = (lowerIndex + shift) % alphabetSize;
-                const newChar = this.data.lowercase[newIndex];
-                
-                if (settings.caseHandling === 'upper') {
-                    result += this.data.alphabet[newIndex];
-                } else {
-                    result += newChar;
-                }
-            } else {
-                // Non-alphabetic character
-                switch (settings.nonAlphaHandling) {
-                    case 'preserve':
-                        result += char;
-                        break;
-                    case 'remove':
-                        break;
-                    case 'space':
-                        result += ' ';
-                        break;
-                }
-            }
+      } else {
+        switch (settings.nonAlphaHandling) {
+          case 'preserve': result += char; break;
+          case 'remove': break;
+          case 'space': result += ' '; break;
         }
-
-        return result;
+      }
     }
+    return result;
+  }
 }
 
-// Brute Force Attacker Class
+// =========================
+// Brute force for Caesar
+// =========================
 class BruteForceAttacker {
-    constructor(language) {
-        this.language = language;
-        this.cipher = new CaesarCipher(language);
-        this.alphabetSize = appData[language].alphabet.length;
+  constructor(language) {
+    this.language = language;
+    this.cipher = new CaesarCipher(language);
+    this.alphabetSize = appData[language].alphabet.length;
+  }
+  attack(ciphertext, callback) {
+    const results = [];
+    for (let key = 1; key < this.alphabetSize; key++) {
+      try {
+        const decrypted = this.cipher.decrypt(ciphertext, key);
+        const score = this.scoreText(decrypted);
+        results.push({ key, text: decrypted, score, likely: score > 0.6 });
+        if (callback) callback(key, this.alphabetSize - 1, results[results.length - 1]);
+      } catch (e) { /* ignore */ }
     }
-
-    attack(ciphertext, callback) {
-        const results = [];
-        
-        for (let key = 1; key < this.alphabetSize; key++) {
-            try {
-                const decrypted = this.cipher.decrypt(ciphertext, key);
-                const score = this.scoreText(decrypted);
-                
-                results.push({
-                    key: key,
-                    text: decrypted,
-                    score: score,
-                    likely: score > 0.6
-                });
-
-                if (callback) {
-                    callback(key, this.alphabetSize - 1, results[results.length - 1]);
-                }
-            } catch (error) {
-                console.error(`Error with key ${key}:`, error);
-            }
-        }
-
-        return results.sort((a, b) => b.score - a.score);
-    }
-
-    scoreText(text) {
-        // Simple scoring based on common patterns
-        const commonWords = this.language === 'ukrainian' 
-            ? ['і', 'в', 'на', 'з', 'до', 'за', 'по', 'від', 'для', 'про', 'що', 'як', 'але', 'або', 'та', 'це']
-            : ['the', 'and', 'is', 'in', 'to', 'of', 'a', 'that', 'it', 'with', 'for', 'as', 'was', 'are'];
-        
-        const words = text.toLowerCase().split(/\s+/);
-        const wordCount = words.length;
-        
-        if (wordCount === 0) return 0;
-        
-        const commonWordMatches = words.filter(word => 
-            commonWords.some(common => word.includes(common))
-        ).length;
-        
-        return commonWordMatches / wordCount;
-    }
+    return results.sort((a, b) => b.score - a.score);
+  }
+  scoreText(text) {
+    const commonWords = this.language === 'ukrainian'
+      ? ['і','в','на','з','до','за','по','від','для','про','що','як','але','або','та','це']
+      : ['the','and','is','in','to','of','a','that','it','with','for','as','was','are'];
+    const words = text.toLowerCase().split(/\s+/);
+    const wordCount = words.filter(Boolean).length;
+    if (!wordCount) return 0;
+    const commonWordMatches = words.filter(w => commonWords.some(c => w.includes(c))).length;
+    return commonWordMatches / wordCount;
+  }
 }
 
-// File Handler Class
+// =========================
+// File handler
+// =========================
 class FileHandler {
-    static loadFile(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = (e) => reject(e);
-            reader.readAsText(file, 'utf-8');
-        });
-    }
-
-    static saveFile(content, filename) {
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
+  static loadFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = e => reject(e);
+      reader.readAsText(file, 'utf-8');
+    });
+  }
+  static saveFile(content, filename) {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 }
 
-// Global instances
+// =========================
+// Trithemius: key/cipher/validator
+// =========================
+class TrithemiusKey {
+  // mode: 'linear' | 'quadratic' | 'motto'; params: {A,B,pBase} | {A,B,C,pBase} | {motto,pBase}
+  constructor(mode, params) {
+    this.mode = mode;
+    this.params = params || {};
+  }
+  kAt(pIndex, n, alphabet) {
+    const p = pIndex + ((this.params.pBase|0) === 1 ? 1 : 0);
+    if (this.mode === 'linear') {
+      const A = Number(this.params.A)||0;
+      const B = Number(this.params.B)||0;
+      return ((A*p + B) % n + n) % n;
+    }
+    if (this.mode === 'quadratic') {
+      const A = Number(this.params.A)||0;
+      const B = Number(this.params.B)||0;
+      const C = Number(this.params.C)||0;
+      return ((A*p*p + B*p + C) % n + n) % n;
+    }
+    if (this.mode === 'motto') {
+      const motto = this.params.motto || '';
+      if (!motto.length) return 0;
+      const ch = motto[pIndex % motto.length];
+      let idx = alphabet.indexOf(ch);
+      if (idx < 0 && alphabet.toLowerCase) idx = alphabet.toLowerCase().indexOf(ch);
+      return ((idx >= 0 ? idx : 0) % n + n) % n;
+    }
+    return 0;
+  }
+}
+
+class TrithemiusKeyValidator {
+  static validate(mode, params, alphabet) {
+    if (mode === 'linear') {
+      if (!Number.isFinite(+params.A) || !Number.isFinite(+params.B)) {
+        return { valid:false, message:'A і B мають бути числами' };
+      }
+      return { valid:true };
+    }
+    if (mode === 'quadratic') {
+      if (!Number.isFinite(+params.A) || !Number.isFinite(+params.B) || !Number.isFinite(+params.C)) {
+        return { valid:false, message:'A, B, C мають бути числами' };
+      }
+      return { valid:true };
+    }
+    if (mode === 'motto') {
+      const motto = params.motto || '';
+      if (!motto.length) return { valid:false, message:'Гасло не може бути порожнім' };
+      for (const ch of motto) {
+        if (!alphabet.includes(ch) && !(alphabet.toLowerCase && alphabet.toLowerCase().includes(ch))) {
+          return { valid:false, message:`Символ "${ch}" відсутній у вибраному алфавіті` };
+        }
+      }
+      return { valid:true };
+    }
+    return { valid:false, message:'Невідомий режим ключа' };
+  }
+}
+
+class TrithemiusCipher {
+  constructor(alphabet) {
+    this.alphabet = alphabet;
+    this.lower = alphabet.toLowerCase ? alphabet.toLowerCase() : alphabet;
+    this.n = alphabet.length;
+  }
+  indexOfChar(ch) {
+    const isLetter = ch.toLowerCase() !== ch.toUpperCase();
+    const isUpper = isLetter && ch === ch.toUpperCase();
+    const base = isUpper ? this.alphabet : this.lower;
+    return { idx: base.indexOf(ch), isUpper };
+  }
+  mapIdx(idx, isUpper) {
+    const base = isUpper ? this.alphabet : this.lower;
+    return base[idx];
+  }
+  transform(text, key, mode = 'enc') {
+    let p = 0;
+    const out = [];
+    for (const ch of text) {
+      const { idx, isUpper } = this.indexOfChar(ch);
+      if (idx === -1) {
+        switch (settings.nonAlphaHandling) {
+          case 'preserve': out.push(ch); break;
+          case 'remove': break;
+          case 'space': out.push(' '); break;
+        }
+        continue;
+      }
+      const k = key.kAt(p, this.n, this.alphabet);
+      const y = mode === 'enc' ? (idx + k) % this.n
+        : ((idx - (k % this.n)) % this.n + this.n) % this.n;
+      let mapped = this.mapIdx(y, isUpper);
+      if (settings.caseHandling === 'upper') mapped = this.alphabet[y];
+      if (settings.caseHandling === 'lower') mapped = this.lower[y];
+      out.push(mapped);
+      p++;
+    }
+    return out.join('');
+  }
+  encrypt(text, key) { return this.transform(text, key, 'enc'); }
+  decrypt(text, key) { return this.transform(text, key, 'dec'); }
+}
+
+// =========================
+// Global instances (Caesar)
+// =========================
 let cipher = new CaesarCipher(currentLanguage);
 let validator = new KeyValidator(currentLanguage);
 let bruteForcer = new BruteForceAttacker(currentLanguage);
 
-// DOM Elements
-const inputText = document.getElementById('inputText');
-const outputText = document.getElementById('outputText');
-const keyInput = document.getElementById('keyInput');
-const languageSelect = document.getElementById('languageSelect');
-const keyRange = document.getElementById('keyRange');
-const keyValidation = document.getElementById('keyValidation');
-const charCount = document.getElementById('charCount');
-const operationTime = document.getElementById('operationTime');
-const fileName = document.getElementById('fileName');
-
-// Initialize application
+// =========================
+// DOM and init
+// =========================
 document.addEventListener('DOMContentLoaded', function() {
-    updateLanguage();
-    validateKey();
-    
-    // Add event listeners
-    keyInput.addEventListener('input', validateKey);
-    inputText.addEventListener('input', updateCharCount);
-    
-    updateCharCount();
+  // Bind DOM
+  inputText = document.getElementById('inputText');
+  outputText = document.getElementById('outputText');
+  keyInput = document.getElementById('keyInput');
+  languageSelect = document.getElementById('languageSelect');
+  keyRange = document.getElementById('keyRange');
+  keyValidation = document.getElementById('keyValidation');
+  charCount = document.getElementById('charCount');
+  operationTime = document.getElementById('operationTime');
+  fileName = document.getElementById('fileName');
+
+  // Event listeners
+  if (keyInput) keyInput.addEventListener('input', validateKey);
+  if (inputText) inputText.addEventListener('input', updateCharCount);
+
+  // Cipher selector glue (if present)
+  const cipherSel = document.getElementById('cipherSelect');
+  if (cipherSel) {
+    cipherSel.addEventListener('change', onCipherChange);
+  }
+  const triModeSel = document.getElementById('trithemiusMode');
+  if (triModeSel) {
+    triModeSel.addEventListener('change', onTrithemiusModeChange);
+  }
+
+  // Init UI
+  updateLanguage();
+  validateKey();
+  updateCharCount();
+
+  // Show correct panels on load
+  onCipherChange();
+  onTrithemiusModeChange();
 });
 
-// File operations
-function newFile() {
-    if (confirm('Очистити поточний текст?')) {
-        inputText.value = '';
-        outputText.value = '';
-        fileName.textContent = '';
-        updateCharCount();
-    }
+// =========================
+// Language ops
+// =========================
+function changeLanguage() {
+  currentLanguage = languageSelect.value;
+  updateLanguage();
+}
+function toggleLanguage() {
+  currentLanguage = currentLanguage === 'ukrainian' ? 'english' : 'ukrainian';
+  languageSelect.value = currentLanguage;
+  updateLanguage();
+}
+function updateAlphabetInfo() {
+  const info = document.getElementById('alphabetInfo');
+  if (info) {
+    const n = appData[currentLanguage].alphabet.length;
+    const langName = currentLanguage === 'ukrainian' ? 'Українська' : 'Англійська';
+    info.textContent = `Алфавіт: ${langName}, n=${n}`;
+  }
+}
+function updateLanguage() {
+  cipher = new CaesarCipher(currentLanguage);
+  validator = new KeyValidator(currentLanguage);
+  bruteForcer = new BruteForceAttacker(currentLanguage);
+  const range = validator.getRange();
+  if (keyRange) keyRange.textContent = `Діапазон: ${range}`;
+  if (keyInput) keyInput.max = validator.maxKey;
+  updateAlphabetInfo();
+  validateKey();
 }
 
-async function openFile() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.txt';
-    input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            try {
-                const content = await FileHandler.loadFile(file);
-                inputText.value = content;
-                fileName.textContent = file.name;
-                updateCharCount();
-            } catch (error) {
-                alert('Помилка завантаження файлу: ' + error.message);
-            }
-        }
-    };
-    input.click();
+// =========================
+/* Cipher selection panels */
+// =========================
+function setCipher(name) {
+  const sel = document.getElementById('cipherSelect');
+  if (sel) {
+    sel.value = name;
+    onCipherChange();
+  }
 }
 
-function saveFile() {
-    const content = outputText.value;
-    if (!content) {
-        alert('Немає результату для збереження');
-        return;
-    }
-    
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-    const filename = `caesar_result_${timestamp}.txt`;
-    FileHandler.saveFile(content, filename);
+function onCipherChange() {
+  const sel = document.getElementById('cipherSelect');
+  if (!sel) { console.warn('cipherSelect not found'); return; }
+  currentCipher = sel.value;
+
+  const caesar = document.getElementById('caesarParams');
+  const tri = document.getElementById('trithemiusParams');
+
+  if (caesar && tri) {
+    const triActive = currentCipher === 'trithemius';
+    caesar.classList.toggle('hidden', triActive);
+    tri.classList.toggle('hidden', !triActive);
+  }
+  // синхронно підлаштовуємо режим Тритеміуса
+  onTrithemiusModeChange();
+
 }
 
-function printFile() {
-    const content = outputText.value || inputText.value;
-    if (!content) {
-        alert('Немає тексту для друку');
-        return;
-    }
-    
-    const printWindow = window.open('', '', 'height=600,width=800');
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>Друк - Шифр Цезаря</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                h1 { color: #333; }
-                .content { white-space: pre-wrap; margin: 20px 0; }
-            </style>
-        </head>
-        <body>
-            <h1>Результат шифрування - Шифр Цезаря</h1>
-            <div class="content">${content}</div>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+function onTrithemiusModeChange() {
+  const mode = document.getElementById('trithemiusMode')?.value || 'linear';
+  const lin = document.getElementById('triLinear');
+  const quad = document.getElementById('triQuadratic');
+  const mot = document.getElementById('triMotto');
+  if (lin) lin.classList.toggle('hidden', mode !== 'linear');
+  if (quad) quad.classList.toggle('hidden', mode !== 'quadratic');
+  if (mot) mot.classList.toggle('hidden', mode !== 'motto');
 }
 
-function exitApp() {
-    if (confirm('Закрити додаток?')) {
-        window.close();
-    }
-}
-
-// Cryptography operations
-function encrypt() {
-    performCryptOperation(true);
-}
-
-function decrypt() {
-    performCryptOperation(false);
-}
+// =========================
+// Crypto operations
+// =========================
+function encrypt() { performCryptOperation(true); }
+function decrypt() { performCryptOperation(false); }
 
 function performCryptOperation(isEncrypt) {
-    const text = inputText.value;
+  const text = inputText.value;
+  if (!text) { alert('Введіть текст для обробки'); return; }
+  const startTime = Date.now();
+  let result = '';
+
+  const sel = document.getElementById('cipherSelect');
+  if (sel && sel.value !== currentCipher) {
+    currentCipher = sel.value; // синхронізація на випадок розсинхрону
+  }
+
+  if (currentCipher === 'caesar') {
     const key = keyInput.value;
-    
-    if (!text) {
-        alert('Введіть текст для обробки');
-        return;
-    }
-    
-    const startTime = Date.now();
-    
     try {
-        const result = isEncrypt ? cipher.encrypt(text, key) : cipher.decrypt(text, key);
-        outputText.value = result;
-        
-        const endTime = Date.now();
-        operationTime.textContent = `Час: ${endTime - startTime}мс`;
-        
-        updateCharCount();
+      result = isEncrypt ? cipher.encrypt(text, key) : cipher.decrypt(text, key);
     } catch (error) {
-        alert('Помилка: ' + error.message);
+      alert('Помилка: ' + error.message);
+      return;
     }
+  } else {
+    // Trithemius
+    const alphabet = appData[currentLanguage].alphabet;
+    const triCipher = new TrithemiusCipher(alphabet);
+    const mode = document.getElementById('trithemiusMode').value;
+    const params = (mode === 'linear')
+      ? { A:+document.getElementById('triA').value, B:+document.getElementById('triB').value, pBase:+document.getElementById('triPBase').value }
+      : (mode === 'quadratic')
+        ? { A:+document.getElementById('triQA').value, B:+document.getElementById('triQB').value, C:+document.getElementById('triQC').value, pBase:+document.getElementById('triQPBase').value }
+        : { motto: document.getElementById('triMottoText').value, pBase:+document.getElementById('triMPBase').value };
+
+    const v = TrithemiusKeyValidator.validate(mode, params, alphabet);
+    const errId = mode==='linear' ? 'triLinearValidation' : mode==='quadratic' ? 'triQuadraticValidation' : 'triMottoValidation';
+    const vEl = document.getElementById(errId);
+    if (!v.valid) {
+      if (vEl) { vEl.textContent = v.message; vEl.className = 'validation-message error'; }
+      alert(v.message);
+      return;
+    } else {
+      ['triLinearValidation','triQuadraticValidation','triMottoValidation'].forEach(id=>{
+        const el = document.getElementById(id); if (el){ el.textContent=''; el.className='validation-message'; }
+      });
+    }
+    const triKey = new TrithemiusKey(mode, params);
+    result = isEncrypt ? triCipher.encrypt(text, triKey) : triCipher.decrypt(text, triKey);
+  }
+
+  outputText.value = result;
+  operationTime.textContent = `Час: ${Date.now() - startTime}мс`;
+  updateCharCount();
 }
 
-// Language operations
-function changeLanguage() {
-    currentLanguage = languageSelect.value;
-    updateLanguage();
+// =========================
+// Caesar brute-force modal
+// =========================
+function showBruteForce() {
+  const text = inputText.value;
+  if (!text) { alert('Введіть зашифрований текст для атаки'); return; }
+  document.getElementById('bruteForceModal').classList.remove('hidden');
+  document.getElementById('bruteForceResults').innerHTML = '';
+  document.getElementById('progressFill').style.width = '0%';
+}
+function closeBruteForce() {
+  document.getElementById('bruteForceModal').classList.add('hidden');
+}
+function startBruteForce() {
+  if (currentCipher !== 'caesar') {
+    alert('Брутфорс реалізовано для шифру Цезаря');
+    return;
+  }
+  const text = inputText.value;
+  const resultsContainer = document.getElementById('bruteForceResults');
+  const progressFill = document.getElementById('progressFill');
+  resultsContainer.innerHTML = '<p>Виконується атака...</p>';
+  bruteForcer.attack(text, (currentKey, totalKeys, result) => {
+    const progress = (currentKey / totalKeys) * 100;
+    progressFill.style.width = progress + '%';
+    if (currentKey === 1) resultsContainer.innerHTML = '';
+    const safeText = result.text.replace(/'/g, "\\'");
+    const resultDiv = document.createElement('div');
+    resultDiv.className = `brute-force-result ${result.likely ? 'likely' : ''}`;
+    resultDiv.innerHTML = `
+      <span class="brute-force-key">Ключ ${result.key}:</span>
+      <span class="brute-force-text">${safeText.substring(0, 100)}${safeText.length > 100 ? '...' : ''}</span>
+      <button class="brute-force-select" onclick="selectBruteForceResult(${result.key}, '${safeText}')">Вибрати</button>
+    `;
+    resultsContainer.appendChild(resultDiv);
+  });
+}
+function selectBruteForceResult(key, text) {
+  keyInput.value = key;
+  outputText.value = text;
+  validateKey();
+  updateCharCount();
+  closeBruteForce();
 }
 
-function toggleLanguage() {
-    currentLanguage = currentLanguage === 'ukrainian' ? 'english' : 'ukrainian';
-    languageSelect.value = currentLanguage;
-    updateLanguage();
+// =========================
+// File ops
+// =========================
+function newFile() {
+  if (confirm('Очистити поточний текст?')) {
+    inputText.value = '';
+    outputText.value = '';
+    if (fileName) fileName.textContent = '';
+    updateCharCount();
+  }
+}
+async function openFile() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.txt';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        const content = await FileHandler.loadFile(file);
+        inputText.value = content;
+        if (fileName) fileName.textContent = file.name;
+        updateCharCount();
+      } catch (error) {
+        alert('Помилка завантаження файлу: ' + error.message);
+      }
+    }
+  };
+  input.click();
+}
+function saveFile() {
+  const content = outputText.value;
+  if (!content) { alert('Немає результату для збереження'); return; }
+  const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
+  const algo = currentCipher === 'caesar' ? 'caesar' : 'trithemius';
+  const filename = `${algo}_result_${timestamp}.txt`;
+  FileHandler.saveFile(content, filename);
+}
+function printFile() {
+  const content = outputText.value || inputText.value;
+  if (!content) { alert('Немає тексту для друку'); return; }
+  const printWindow = window.open('', '', 'height=600,width=800');
+  printWindow.document.write(`
+    <html>
+    <head>
+      <title>Друк - Криптосистема</title>
+      <style>body{font-family:Arial,sans-serif;margin:20px;}h1{color:#333}.content{white-space:pre-wrap;margin:20px 0}</style>
+    </head>
+    <body>
+      <h1>Результат</h1>
+      <div class="content">${content.replace(/</g,'&lt;')}</div>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+function exitApp() {
+  if (confirm('Закрити додаток?')) window.close();
 }
 
-function updateLanguage() {
-    cipher = new CaesarCipher(currentLanguage);
-    validator = new KeyValidator(currentLanguage);
-    bruteForcer = new BruteForceAttacker(currentLanguage);
-    
-    const range = validator.getRange();
-    keyRange.textContent = `Діапазон: ${range}`;
-    keyInput.max = validator.maxKey;
-    
-    validateKey();
-}
-
-// Key operations
+// =========================
+// Key ops (Caesar)
+// =========================
 function validateKey() {
-    const key = keyInput.value;
-    const validation = validator.validate(key);
-    
+  if (!keyInput) return;
+  const key = keyInput.value;
+  const validation = new KeyValidator(currentLanguage).validate(key);
+  if (keyValidation) {
     keyValidation.textContent = validation.message;
     keyValidation.className = `validation-message ${validation.valid ? 'success' : 'error'}`;
+  }
 }
-
 function generateRandomKey() {
-    const maxKey = validator.maxKey;
-    const randomKey = Math.floor(Math.random() * maxKey) + 1;
-    keyInput.value = randomKey;
-    validateKey();
+  const maxKey = new KeyValidator(currentLanguage).maxKey;
+  const randomKey = Math.floor(Math.random() * maxKey) + 1;
+  keyInput.value = randomKey;
+  validateKey();
 }
-
 function setKey(key) {
-    keyInput.value = key;
-    validateKey();
+  keyInput.value = key;
+  validateKey();
 }
 
-// Utility functions
+// =========================
+// Samples / clipboard / stats
+// =========================
 function loadSample() {
-    inputText.value = appData[currentLanguage].sample;
-    updateCharCount();
+  inputText.value = appData[currentLanguage].sample;
+  updateCharCount();
 }
-
-function loadFile() {
-    const fileInput = document.getElementById('fileInput');
-    const file = fileInput.files[0];
-    
-    if (file) {
-        FileHandler.loadFile(file).then(content => {
-            inputText.value = content;
-            fileName.textContent = file.name;
-            updateCharCount();
-        }).catch(error => {
-            alert('Помилка завантаження файлу: ' + error.message);
-        });
-    }
+function loadFileInput() {
+  const fi = document.getElementById('fileInput');
+  const file = fi.files[0];
+  if (file) {
+    FileHandler.loadFile(file).then(content => {
+      inputText.value = content;
+      if (fileName) fileName.textContent = file.name;
+      updateCharCount();
+    }).catch(err => alert('Помилка завантаження файлу: ' + err.message));
+  }
 }
-
 function copyResult() {
-    if (!outputText.value) {
-        alert('Немає результату для копіювання');
-        return;
-    }
-    
-    outputText.select();
-    document.execCommand('copy');
-    alert('Результат скопійовано в буфер обміну');
+  if (!outputText.value) { alert('Немає результату для копіювання'); return; }
+  outputText.select();
+  document.execCommand('copy');
+  alert('Результат скопійовано в буфер обміну');
 }
-
 function clearResult() {
-    outputText.value = '';
-    updateCharCount();
+  outputText.value = '';
+  updateCharCount();
 }
-
 function updateCharCount() {
-    const text = outputText.value || inputText.value;
-    charCount.textContent = `Символів: ${text.length}`;
+  const text = outputText.value || inputText.value || '';
+  if (charCount) charCount.textContent = `Символів: ${text.length}`;
 }
 
-// Brute Force Modal
-function showBruteForce() {
-    const text = inputText.value;
-    if (!text) {
-        alert('Введіть зашифрований текст для атаки');
-        return;
-    }
-    
-    document.getElementById('bruteForceModal').classList.remove('hidden');
-    document.getElementById('bruteForceResults').innerHTML = '';
-    document.getElementById('progressFill').style.width = '0%';
-}
-
-function closeBruteForce() {
-    document.getElementById('bruteForceModal').classList.add('hidden');
-}
-
-function startBruteForce() {
-    const text = inputText.value;
-    const resultsContainer = document.getElementById('bruteForceResults');
-    const progressFill = document.getElementById('progressFill');
-    
-    resultsContainer.innerHTML = '<p>Виконується атака...</p>';
-    
-    bruteForcer.attack(text, (currentKey, totalKeys, result) => {
-        const progress = (currentKey / totalKeys) * 100;
-        progressFill.style.width = progress + '%';
-        
-        if (currentKey === 1) {
-            resultsContainer.innerHTML = '';
-        }
-        
-        const resultDiv = document.createElement('div');
-        resultDiv.className = `brute-force-result ${result.likely ? 'likely' : ''}`;
-        resultDiv.innerHTML = `
-            <span class="brute-force-key">Ключ ${result.key}:</span>
-            <span class="brute-force-text">${result.text.substring(0, 100)}${result.text.length > 100 ? '...' : ''}</span>
-            <button class="brute-force-select" onclick="selectBruteForceResult(${result.key}, '${result.text.replace(/'/g, "\\'")}')">Вибрати</button>
-        `;
-        
-        resultsContainer.appendChild(resultDiv);
-    });
-}
-
-function selectBruteForceResult(key, text) {
-    keyInput.value = key;
-    outputText.value = text;
-    validateKey();
-    updateCharCount();
-    closeBruteForce();
-}
-
-// Settings Modal
+// =========================
+// Modals & settings
+// =========================
 function showSettings() {
-    document.getElementById('settingsModal').classList.remove('hidden');
-    document.getElementById('caseHandling').value = settings.caseHandling;
-    document.getElementById('nonAlphaHandling').value = settings.nonAlphaHandling;
+  document.getElementById('settingsModal').classList.remove('hidden');
+  document.getElementById('caseHandling').value = settings.caseHandling;
+  document.getElementById('nonAlphaHandling').value = settings.nonAlphaHandling;
 }
-
 function closeSettings() {
-    document.getElementById('settingsModal').classList.add('hidden');
+  document.getElementById('settingsModal').classList.add('hidden');
 }
-
 function saveSettings() {
-    settings.caseHandling = document.getElementById('caseHandling').value;
-    settings.nonAlphaHandling = document.getElementById('nonAlphaHandling').value;
-    closeSettings();
-    alert('Налаштування збережено');
+  settings.caseHandling = document.getElementById('caseHandling').value;
+  settings.nonAlphaHandling = document.getElementById('nonAlphaHandling').value;
+  closeSettings();
+  alert('Налаштування збережено');
 }
-
-// Help Modal
 function showHelp() {
-    document.getElementById('helpModal').classList.remove('hidden');
+  document.getElementById('helpModal').classList.remove('hidden');
 }
-
 function closeHelp() {
-    document.getElementById('helpModal').classList.add('hidden');
+  document.getElementById('helpModal').classList.add('hidden');
 }
-
-// About Modal
 function showAbout() {
-    document.getElementById('aboutModal').classList.remove('hidden');
+  document.getElementById('aboutModal').classList.remove('hidden');
 }
-
 function closeAbout() {
-    document.getElementById('aboutModal').classList.add('hidden');
+  document.getElementById('aboutModal').classList.add('hidden');
 }
-
-// Close modals on outside click
 document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('modal')) {
-        e.target.classList.add('hidden');
-    }
+  if (e.target.classList.contains('modal')) {
+    e.target.classList.add('hidden');
+  }
 });
 
-// Keyboard shortcuts
+// =========================
+// Shortcuts
+// =========================
 document.addEventListener('keydown', function(e) {
-    if (e.ctrlKey) {
-        switch(e.key) {
-            case 'e':
-                e.preventDefault();
-                encrypt();
-                break;
-            case 'd':
-                e.preventDefault();
-                decrypt();
-                break;
-            case 's':
-                e.preventDefault();
-                saveFile();
-                break;
-            case 'o':
-                e.preventDefault();
-                openFile();
-                break;
-            case 'n':
-                e.preventDefault();
-                newFile();
-                break;
-        }
+  if (e.ctrlKey) {
+    switch(e.key) {
+      case 'e': e.preventDefault(); encrypt(); break;
+      case 'd': e.preventDefault(); decrypt(); break;
+      case 's': e.preventDefault(); saveFile(); break;
+      case 'o': e.preventDefault(); openFile(); break;
+      case 'n': e.preventDefault(); newFile(); break;
     }
+  }
 });
+
+// =========================
+// Expose needed fns to global scope for HTML onclick
+// =========================
+window.newFile = newFile;
+window.openFile = openFile;
+window.saveFile = saveFile;
+window.printFile = printFile;
+window.exitApp = exitApp;
+window.encrypt = encrypt;
+window.decrypt = decrypt;
+window.changeLanguage = changeLanguage;
+window.toggleLanguage = toggleLanguage;
+window.validateKey = validateKey;
+window.generateRandomKey = generateRandomKey;
+window.setKey = setKey;
+window.loadSample = loadSample;
+window.loadFile = loadFileInput;
+window.copyResult = copyResult;
+window.clearResult = clearResult;
+window.showBruteForce = showBruteForce;
+window.closeBruteForce = closeBruteForce;
+window.startBruteForce = startBruteForce;
+window.showSettings = showSettings;
+window.closeSettings = closeSettings;
+window.saveSettings = saveSettings;
+window.showHelp = showHelp;
+window.closeHelp = closeHelp;
+window.showAbout = showAbout;
+window.closeAbout = closeAbout;
+window.setCipher = setCipher;
+window.onCipherChange = onCipherChange;
+window.onTrithemiusModeChange = onTrithemiusModeChange;
