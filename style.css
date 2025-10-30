@@ -1260,3 +1260,38 @@ select.form-control {
 .bg-warning {
   background-color: rgba(var(--color-warning-rgb), 0.1);
 }
+
+/* Book Cipher Styles */
+.book-cipher-table {
+  border-collapse: collapse;
+  margin: 15px auto;
+  background: #f9f9f9;
+  border: 2px solid #333;
+  font-family: monospace;
+}
+
+.book-cipher-table th,
+.book-cipher-table td {
+  border: 1px solid #989898;
+  padding: 8px 12px;
+  text-align: center;
+  width: 35px;
+  height: 35px;
+}
+
+.book-cipher-table th {
+  background: #5a5a5a;
+  font-weight: bold;
+}
+
+.book-cipher-table td {
+  background: #989898;
+  font-weight: 500;
+}
+
+.validation-message.success {
+  color: green;
+  background: #e8f5e9;
+  padding: 8px;
+  border-radius: 4px;
+}
